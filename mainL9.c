@@ -41,6 +41,9 @@
 
 // Variables
 unsigned short CCPR = 0;        // Variable para almacenar ancho de pulso al hacer la interpolación lineal
+uint8_t canal = 0;
+uint8_t valor = 0;
+uint8_t LSbit = 0;
 
 // Prototipo de funciones
 void setup(void);
@@ -55,6 +58,19 @@ void __interrupt() isr (void){
             CCPR1L = (uint8_t)(CCPR>>2);    // Guardar los 8 bits mas significativos en CPR1L
             CCP1CONbits.DC1B = CCPR & 0b11; // Guardar los 2 bits menos significativos en DC1B
         }
+        else if(ADCON0bits.CHS == 1){
+            CCPR = map(ADRESH, IN_MIN, IN_MAX, OUT_MIN, OUT_MAX); // Valor de anchode pulso
+            CCPR2L = (uint8_t)(CCPR>>2);    // Guardar los 8 bits mas significativos en CPR1L
+            CCP2CONbits.DC2B0 = CCPR & 0b1; // Guardar los 2 bits menos significativos en DC1B
+            LSbit = CCPR & 0b10;
+            if (LSbit == 2)
+                CCP2CONbits.DC2B1 = 1;
+            else
+                CCP2CONbits.DC2B1 = 0;
+        }
+        /*else if(ADCON0bits.CHS == 4){
+            valor = ADRESH;
+        }*/
         PIR1bits.ADIF = 0;                  // Limpiar bandera de interrupción
     }
     return;
@@ -65,7 +81,30 @@ void main(void) {
     setup();
     while(1){
         if(ADCON0bits.GO == 0){             // No hay proceso de conversion
-            ADCON0bits.GO = 1;              // Iniciamos proceso de conversi n?
+            /*if(ADCON0bits.CHS == 0)
+                ADCON0bits.CHS = 0b0001;    // Cambiar de canal
+            else if(ADCON0bits.CHS == 1)
+                ADCON0bits.CHS = 0b0000;    // Cambiar de canal
+            __delay_us(40);                 // Esperar 40 us (tiempo de adquisición)*/
+            canal = ADCON0bits.CHS;
+            switch(canal){           // Evaluar variable para determinar el display que debe encenderse
+                case 0:
+                    ADCON0bits.CHS = 1;
+                    __delay_us(40);
+                    break;
+                case 1:
+                    ADCON0bits.CHS = 4;
+                    __delay_us(40);
+                    break;
+                case 4:
+                    ADCON0bits.CHS = 0;
+                    __delay_us(40);
+                    break;
+                default:
+                    ADCON0bits.CHS = 0;
+                    __delay_us(40);
+            }
+            ADCON0bits.GO = 1;              // Iniciar porceso de conversión
         }
     }
     return;
@@ -73,12 +112,12 @@ void main(void) {
 
 // Configuración 
 void setup(void){
-    ANSEL = 0b1;                // AN0 como entrada analógica
+    ANSEL = 0b00100011;         // AN0 y AN1 como entrada analógica
     ANSELH = 0;                 // I/O digitales
-    TRISA = 0b1;                // AN0 como entrada
+    TRISA = 0b00100011;         // AN0 y AN1 como entrada
     PORTA = 0;
     
-    // Reloj interno?
+    // Reloj interno
     OSCCONbits.IRCF = 0b011;    // 500 KHz
     OSCCONbits.SCS = 1;         // Oscilador interno
     
@@ -93,15 +132,21 @@ void setup(void){
     
     // PWM
     TRISCbits.TRISC2 = 1;       // Deshabilitar salida de CCP1
+    TRISCbits.TRISC1 = 1;       // Deshabilitar salida de CCP2
     PR2 = 155;                  // Periodo de 20ms
     
     // CCP1
     CCP1CON = 0;                // Apagar CCP1
     CCP1CONbits.P1M = 0;        // Modo single output
     CCP1CONbits.CCP1M = 0b1100; // PWM
+    CCP2CON = 0;
+    CCP2CONbits.CCP2M = 0b1100;
     
     CCPR1L = 63>>2;
     CCP1CONbits.DC1B = 63 & 0b11;    // 2 ms ancho de pulso / 10% ciclo de trabajo
+    CCPR2L = 63>>2;
+    CCP2CONbits.DC2B0 = 1;
+    CCP2CONbits.DC2B1 = 1;
     
     PIR1bits.TMR2IF = 0;        // Limpiar bandera de interrupcion del TMR2
     T2CONbits.T2CKPS = 0b11;    // prescaler 1:16
@@ -110,6 +155,7 @@ void setup(void){
     PIR1bits.TMR2IF = 0;        // Limpiar bandera de interrupcion del TMR2 nuevamente
     
     TRISCbits.TRISC2 = 0;       // Habilitar salida de PWM
+    TRISCbits.TRISC1 = 0;
     // Configuracion interrupciones
     PIR1bits.ADIF = 0;          // Limpir bandera de ADC
     PIE1bits.ADIE = 1;          // Habilitar interrupcion de ADC

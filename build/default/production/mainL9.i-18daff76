@@ -2833,7 +2833,6 @@ extern char * ftoa(float f, int * status);
 unsigned short CCPR = 0;
 uint8_t canal = 0;
 uint8_t valor = 0;
-uint8_t LSbit = 0;
 
 
 void setup(void);
@@ -2852,15 +2851,11 @@ void __attribute__((picinterrupt(("")))) isr (void){
             CCPR = map(ADRESH, 0, 255, 31, 63);
             CCPR2L = (uint8_t)(CCPR>>2);
             CCP2CONbits.DC2B0 = CCPR & 0b1;
-            LSbit = CCPR & 0b10;
-            if (LSbit == 2)
-                CCP2CONbits.DC2B1 = 1;
-            else
-                CCP2CONbits.DC2B1 = 0;
+            CCP2CONbits.DC2B1 = CCPR & 0b10;
         }
-
-
-
+        else if(ADCON0bits.CHS == 4){
+            valor = ADRESH;
+        }
         PIR1bits.ADIF = 0;
     }
     return;
@@ -2935,8 +2930,8 @@ void setup(void){
     CCPR1L = 63>>2;
     CCP1CONbits.DC1B = 63 & 0b11;
     CCPR2L = 63>>2;
-    CCP2CONbits.DC2B0 = 1;
-    CCP2CONbits.DC2B1 = 1;
+    CCP2CONbits.DC2B0 = 63 & 0b1;
+
 
     PIR1bits.TMR2IF = 0;
     T2CONbits.T2CKPS = 0b11;

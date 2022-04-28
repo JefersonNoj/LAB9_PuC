@@ -2831,9 +2831,6 @@ extern char * ftoa(float f, int * status);
 # 33 "mainL9.c" 2
 # 43 "mainL9.c"
 unsigned short CCPR = 0;
-uint8_t canal = 0;
-uint8_t valor = 0;
-uint8_t LSbit = 0;
 
 
 void setup(void);
@@ -2851,16 +2848,9 @@ void __attribute__((picinterrupt(("")))) isr (void){
         else if(ADCON0bits.CHS == 1){
             CCPR = map(ADRESH, 0, 255, 31, 63);
             CCPR2L = (uint8_t)(CCPR>>2);
-            CCP2CONbits.DC2B0 = CCPR & 0b1;
-            LSbit = CCPR & 0b10;
-            if (LSbit == 2)
-                CCP2CONbits.DC2B1 = 1;
-            else
-                CCP2CONbits.DC2B1 = 0;
+            CCP2CONbits.DC2B = CCPR & 0b11;
+
         }
-
-
-
         PIR1bits.ADIF = 0;
     }
     return;
@@ -2871,29 +2861,11 @@ void main(void) {
     setup();
     while(1){
         if(ADCON0bits.GO == 0){
-
-
-
-
-
-            canal = ADCON0bits.CHS;
-            switch(canal){
-                case 0:
-                    ADCON0bits.CHS = 1;
-                    _delay((unsigned long)((40)*(500000/4000000.0)));
-                    break;
-                case 1:
-                    ADCON0bits.CHS = 4;
-                    _delay((unsigned long)((40)*(500000/4000000.0)));
-                    break;
-                case 4:
-                    ADCON0bits.CHS = 0;
-                    _delay((unsigned long)((40)*(500000/4000000.0)));
-                    break;
-                default:
-                    ADCON0bits.CHS = 0;
-                    _delay((unsigned long)((40)*(500000/4000000.0)));
-            }
+            if(ADCON0bits.CHS == 0)
+                ADCON0bits.CHS = 0b0001;
+            else if(ADCON0bits.CHS == 1)
+                ADCON0bits.CHS = 0b0000;
+            _delay((unsigned long)((40)*(500000/4000000.0)));
             ADCON0bits.GO = 1;
         }
     }
@@ -2902,9 +2874,9 @@ void main(void) {
 
 
 void setup(void){
-    ANSEL = 0b00100011;
+    ANSEL = 0b11;
     ANSELH = 0;
-    TRISA = 0b00100011;
+    TRISA = 0b11;
     PORTA = 0;
 
 
@@ -2935,8 +2907,8 @@ void setup(void){
     CCPR1L = 63>>2;
     CCP1CONbits.DC1B = 63 & 0b11;
     CCPR2L = 63>>2;
-    CCP2CONbits.DC2B0 = 1;
-    CCP2CONbits.DC2B1 = 1;
+    CCP2CONbits.DC2B = 63 & 0b11;
+
 
     PIR1bits.TMR2IF = 0;
     T2CONbits.T2CKPS = 0b11;
